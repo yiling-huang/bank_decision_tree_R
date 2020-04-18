@@ -1,0 +1,283 @@
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(textstem)
+library(tidytext)
+library(janeaustenr)
+library(ggplot2)
+
+a <- read_excel("all_done_2014.xlsx")
+# detect na (0 na)
+length(which(!complete.cases(a)))
+a <- a[complete.cases(a), ]
+
+# change data type
+a$votes_useful <- as.numeric(a$votes_useful)
+a$text <- as.character(a$text)
+a$date <- as.character(a$date)
+a$categories <- as.character(a$categories)
+a$name <- as.character(a$name)
+a$date <- as.character(a$date)
+a[,12:28] <- lapply(a[,12:28],as.factor)
+
+# view columns of data
+names(a)
+
+# new category
+a$category = case_when(a$American_New == 1 ~ "American_New",
+                       a$American_Traditional == 1 ~"American_Traditional",
+                       a$Asian_Fusion == 1 ~ "Asian_Fusion",
+                       a$Cajun_Creole == 1 ~ "Cajun_Creole",
+                       a$Caribbean == 1 ~ "Caribbean",
+                       a$Chinese == 1 ~ "Chinese",
+                       a$Delis == 1 ~ "Delis",
+                       a$Greek == 1 ~ "Greek",
+                       a$Indian == 1 ~ "Indian",
+                       a$Irish == 1 ~ "Irish",
+                       a$Italian == 1 ~"Italian",
+                       a$Japanese == 1 ~ "Japanese",
+                       a$Lebanese == 1 ~ "Lebanese",
+                       a$Mediterranean ==1 ~ "Mediterranean",
+                       a$Mexican ==1 ~ "Mexican",
+                       a$Middle_Eastern ==1 ~ "Middle_Eastern",
+                       a$Tex_Mex ==1 ~ "Tex_Mex")
+
+# drop columns we do not need
+a_m <- a[,-c(1)]
+b <- a_m[,-c(11:27)]
+b$category <- as.factor(b$category)
+
+#-------------------------------------------------------------------------------
+# only useful reviews
+b_useful <- b %>%
+  filter (!(votes_useful==0)) %>%
+  select(category, text)
+
+b_useful$text <- tolower(b_useful$text)
+
+c <- b_useful %>%
+  unnest_tokens(bigram, text, token = "ngrams", n=2)
+
+# find stop words
+c %>%
+  count(bigram, sort = TRUE)
+
+# separate two words
+bigrams_separated <- c %>%
+  separate(bigram, c("word1", "word2"), sep = " ")
+# drop stop words
+bigrams_filtered <- bigrams_separated %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word)
+# stem words
+bigrams_filtered$word1<- lemmatize_words(bigrams_filtered$word1)
+bigrams_filtered$word2<- lemmatize_words(bigrams_filtered$word2)
+
+# new word counts
+bigram_counts <- bigrams_filtered %>%
+  count(word1, word2 , sort = TRUE)
+
+
+# sentiment dictiionary
+bing <- get_sentiments("bing")
+
+# a. + time
+time_second <- bigrams_filtered %>%
+  group_by(category) %>%
+  filter(word1 %in% c("time") | word2 %in% c("time")) %>%
+  inner_join(bing, by = c(word1 = "word")) %>%
+
+
+time_second_count <- bigrams_filtered %>%
+  group_by(category) %>%
+  filter(word1 %in% c("time") | word2 %in% c("time")) %>%
+  inner_join(bing, by = c(word1 = "word")) %>%
+  group_by(category, sentiment) %>%
+  count(word2)
+
+time_second_united <- time_second %>%
+  unite(bigram, word1, word2) %>%
+  group_by(category) %>%
+  count(bigram, sort = TRUE) %>%
+  arrange(category, desc(n)) %>%
+  top_n(3)
+
+# time + a.
+time_first <- bigrams_filtered %>%
+  group_by(category) %>%
+  filter(word1 %in% c("time") | word2 %in% c("time")) %>%
+  inner_join(bing, by = c(word2 = "word"))
+
+time_first_count <- bigrams_filtered %>%
+  group_by(category) %>%
+  filter(word1 %in% c("time") | word2 %in% c("time")) %>%
+  inner_join(bing, by = c(word2 = "word")) %>%
+  group_by(category, sentiment) %>%
+  count(word1)
+
+time_first_united <- time_first %>%
+  unite(bigram, word1, word2) %>%
+  group_by(category) %>%
+  count(bigram, sort = TRUE) %>%
+  arrange(category, desc(n)) %>%
+  top_n(3)
+
+# a. + service
+service_second <- bigrams_filtered %>%
+  group_by(category) %>%
+  filter(word1 %in% c("service") | word2 %in% c("service")) %>%
+  inner_join(bing, by = c(word1 = "word"))
+
+service_second_count <- bigrams_filtered %>%
+  group_by(category) %>%
+  filter(word1 %in% c("service") | word2 %in% c("service")) %>%
+  inner_join(bing, by = c(word1 = "word")) %>%
+  group_by(category, sentiment) %>%
+  count(word2)
+
+service_second_united <- service_second %>%
+  unite(bigram, word1, word2) %>%
+  group_by(category) %>%
+  count(bigram, sort = TRUE) %>%
+  arrange(category, desc(n)) %>%
+  top_n(3)
+
+# service + a.
+service_first <- bigrams_filtered %>%
+  group_by(category) %>%
+  filter(word1 %in% c("service") | word2 %in% c("service")) %>%
+  inner_join(bing, by = c(word2 = "word"))
+
+service_first_count <- bigrams_filtered %>%
+  group_by(category) %>%
+  filter(word1 %in% c("service") | word2 %in% c("service")) %>%
+  inner_join(bing, by = c(word2 = "word")) %>%
+  group_by(category, sentiment) %>%
+  count(word1)
+
+service_first_united <- service_first %>%
+  unite(bigram, word1, word2) %>%
+  group_by(category) %>%
+  count(bigram, sort = TRUE) %>%
+  arrange(category, desc(n)) %>%
+  top_n(3)
+
+
+bigrams_united <- bigrams_filtered %>%
+  unite(bigram, word1, word2, sep = " ")
+
+
+# most frequent two words based on different category
+top_10_c <- bigrams_united %>%
+  group_by(category) %>%
+  count(bigram) %>%
+  arrange(category, desc(n)) %>%
+  top_n(10)
+
+# sentiment analysis
+bigrams_separated %>%
+  filter(word1 == "not") %>%
+  count(word1, word2, sort = TRUE)
+
+# most frequent words that were preceded by "not" and were associated with a sentiment
+not_words <- bigrams_separated %>%
+  filter(word1 == "not") %>%
+  inner_join(bing, by = c(word2 = "word")) %>%
+  count(word2, sort = TRUE)
+
+# do not provide any insight
+negation_words <- c("not", "no", "never", "without")
+
+# most not + "adj." word count
+negated_words <- bigrams_separated %>%
+  filter(word1 %in% negation_words) %>%
+  inner_join(bing, by = c(word2 = "word")) %>%
+  unite(bigram, word1, word2, sep = " ") %>%
+  group_by(category) %>%
+  count(bigram) %>%
+  arrange(category, desc(n)) %>%
+  top_n(10)
+
+#----------------------------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------------------
+# store with five rating
+stores <- b %>%
+  filter (!(votes_useful==0)) %>%
+  select(name, category, stars_business) %>%
+  group_by(category) %>%
+  filter((stars_business == 5)) %>%
+  arrange(category) %>%
+  distinct(name)
+
+# useful reviews, ranking
+b_useful_store <- b %>%
+  filter (!(votes_useful==0)) %>%
+  inner_join(stores, by = c(name = "name", category = "category"))%>%
+  select(category, name, text)
+
+b_useful_store$text <- tolower(b_useful_store$text)
+
+
+
+#--------------------------------------------------------------------------------------
+# one word-----------------------------------------------------------------------------
+c <- b_useful_store %>%
+  unnest_tokens(word, text)
+c_m <- c %>%
+  anti_join(stop_words)
+
+# stem words
+c_m$word<- lemmatize_words(c_m$word)
+
+# the most frequent word in each category
+category_word_count <- c_m %>%
+  group_by(category)%>%
+  count(word) %>%
+  arrange(category, desc(n)) %>%
+  top_n(1)
+
+# the most frequent key word of each store
+store_word_count <- c_m %>%
+  group_by(name)%>%
+  count(word) %>%
+  arrange(name, desc(n)) %>%
+  top_n(1)
+
+#--------------------------------------------------------------------------------------
+# two word-----------------------------------------------------------------------------
+
+two <- b_useful_store %>%
+  unnest_tokens(bigram, text, token = "ngrams", n=2)
+
+# separate two words
+bigrams_separated <- two %>%
+  separate(bigram, c("word1", "word2"), sep = " ")
+
+# drop stop words
+bigrams_filtered <- bigrams_separated %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word)
+# stem words
+bigrams_filtered$word1<- lemmatize_words(bigrams_filtered$word1)
+bigrams_filtered$word2<- lemmatize_words(bigrams_filtered$word2)
+
+# new word counts
+bigram_counts <- bigrams_filtered %>%
+  count(word1, word2 , sort = TRUE)
+
+bigrams_united <- bigrams_filtered %>%
+  unite(bigram, word1, word2, sep = " ")
+
+# the most frequent two words based on different category
+top_1_category <- bigrams_united %>%
+  group_by(category) %>%
+  count(bigram) %>%
+  arrange(category, desc(n)) %>%
+  top_n(1)
+
+# the most frequent two words based on different store
+top_1_store <- bigrams_united %>%
+  group_by(category, name) %>%
+  count(bigram) %>%
+  arrange(name, desc(n)) %>%
+  top_n(1)
