@@ -1,0 +1,45 @@
+library(rpart)
+library(dplyr)
+library(rattle)
+library(caret)
+
+# import data
+a <- read.csv("bank.csv")
+
+# check missing value
+length(which(!complete.cases(a)))
+
+# check data
+summary(a)
+
+# stratified sampling
+set.seed(1)
+ss = a %>%
+  group_by(y) %>%
+  sample_n(521, replace = FALSE)
+  
+# split data into test and train
+n <- nrow(ss)
+n_train <- round(.6*n)
+set.seed(456)
+train_index <- sample(1:n, n_train)
+train <- ss[train_index,]
+test <- ss[-train_index,]
+
+# run model decision tree
+fit <- rpart(y~., data = train, method = 'class')
+
+# plot tree map
+fancyRpartPlot(fit)
+
+# show rules
+asRules(fit)
+
+# fit model into test dataset
+tree_pred <- predict(fit, test, type = "class")
+
+# performance of model
+confusionMatrix(data = tree_pred,
+                reference = test$y)
+
+
