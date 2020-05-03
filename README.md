@@ -1,6 +1,6 @@
 # bank_decision_tree_R
 
-Objectives: Can we predict whether client subscribed a term deposit using these features?
+Objectives: Can we predict whether client subscribe a term deposit using these features?
 
 Model I use: Decision tree ("C50" package)
 
