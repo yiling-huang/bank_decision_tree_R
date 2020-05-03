@@ -8,7 +8,7 @@ Data preprocessing:
   1. detect missing values and find no missing value
   2. figure out label (y) is imbalanced and use "ROSE" package to resample data
 
-Hyperameter Tuning:
+Hyper-parameter Tuning:
   How many trials we need to fill in?
 
 After we run decision tree and fit test set into model, accuracy is 0.859 and AUC is about 0.767 and therefore the model performance is not bad.
