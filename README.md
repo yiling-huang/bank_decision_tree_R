@@ -11,10 +11,9 @@ Data preprocessing:
 Hyperameter Tuning:
   How many trials we need to fill in?
 
-After we run decision tree and fit test set into model, accuracy is 0.859 and AUC is about 0.767 and therefore the outcome is not bad.
+After we run decision tree and fit test set into model, accuracy is 0.859 and AUC is about 0.767 and therefore the model performance is not bad.
 
 --------------------------------------------------------------------------------------------------------------------------------------
 Business Insight:
 1. If there is a new customer, we can predict whether this customer will subscribe product based on this model
-2. We can understand which variables are most important to classify whether customers will subscribe products and therefore we can find more
-customers who have good performance on those important variables and company can target customers efficiently.
+2. We can understand which variables are most important to classify whether customers will subscribe products and therefore we can find more customers who have good performance on those important variables and company can target customers efficiently.
